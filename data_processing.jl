@@ -44,7 +44,7 @@ begin
 end
 
 
-test_path = compr_list[1]
+test_path = compr_list[1:3]
 extract_json(data_path, test_path)
 json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(".json", i)])
 
@@ -56,9 +56,14 @@ function read_json_sample(path)
     return data_sample
 end
 
-ds = read_json_sample(json_list[1])
-meta_data = pop!(ds)
+samples = []
+for fp in json_list
+    sample = read_json_sample(fp)
+    push!(samples, sample)
+end
+meta_data = [pop!(ds) for ds in samples]
 
+meta_data[1][3]["result"][1]
 
 # data issue: all urls the same in a large fraction of all samples on the first day
 function get_urls(meta_data, index)
