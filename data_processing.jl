@@ -39,6 +39,9 @@ function read_json_sample(path)
     return data_sample
 end
 
+# test if all elements in a list are equal [FIND REFERENCE]
+allequal(x) = all(y -> y == x[1], x)
+
 # quick and dirty tests
 begin  
     # input is array
@@ -54,26 +57,25 @@ begin
 end
 
 # extract, read and remove data
-begin
-    test_path = compr_list[1:3]  # how many archives to extract
-    extract_json(data_path, test_path)  # the extraction
-    json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(".json", i)])  # list of the extracted files
+test_path = compr_list[1:3]  # how many archives to extract
+extract_json(data_path, test_path)  # the extraction
+json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(".json", i)])  # list of the extracted files
 
-    # read json files
-    samples = []
-    for fp in json_list
-        sample = read_json_sample(fp)
-        push!(samples, sample)
-    end
-
-    # remove json files
-    remove_json(data_path)
+# read json files
+samples = []
+for fp in json_list
+    sample = read_json_sample(fp)
+    push!(samples, sample)
 end
+
+# remove json files
+remove_json(data_path)
 
 
 # last item contains the actual search results with a unique hash
 meta_data = [pop!(ds) for ds in samples]
 
+meta_data[1][1]
 
 
 ##### -------------------------------------------- #####
@@ -89,6 +91,7 @@ day = 3
 sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:length(meta_data[day])]])
 
 
+# another data issue: apparently, there are a bunch of collisions in the hash function -.-
 
 
 
@@ -97,33 +100,53 @@ sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:
 ##### RAW DATA PROCESSING PROCEDURE #####
 ##### ----------------------------- #####
 
-pattern = ".7z"
+file_endings = Dict(
+    "7z" => ".7z",
+    "json" => ".json"
+)
 data_path = "data"
-compr_list = [i for i in readdir(data_path) if occursin(pattern, i)]
+archive_list = [i for i in readdir(data_path) if occursin(file_endings["7z"], i)]
+full_data_set = DataFrame[]
+for archive in archive_list[1:3]
+    extract_json(data_path, archive)
+    json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(file_endings["json"], i)])
 
-extract_json(data_path, compr_list[1])
+    # seperate meta data and search results
+    meta_data = read_json_sample(json_list[1]);
+    result_data = pop!(meta_data);
 
-json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(".json", i)])
-
-result_sample = read_json_sample(json_list[1])
-meta_data = pop!(result_sample)
-
-df_list = DataFrame[]
-for i in 1:length(result_sample)
-    tmp_list = DataFrame[]
-    for j in 1:length(result_sample[i])
-        push!(tmp_list, DataFrame(result_sample[i][j]))
+    # convert meta data into dataframe
+    meta_data_df_list = DataFrame[]
+    for i in 1:length(meta_data)
+        tmp_df_list = DataFrame[]
+        for j in 1:length(meta_data[i])
+            push!(tmp_df_list, DataFrame(meta_data[i][j]))
+        end
+        tmp_df = reduce(vcat, tmp_df_list)
+        push!(meta_data_df_list, tmp_df)
     end
-    tmp_df = reduce(vcat, tmp_list)
-    push!(df_list, tmp_df)
+    meta_data_df = reduce(vcat, meta_data_df_list)
+
+    # convert search results to dataframe
+    result_data_df_list = DataFrame[]
+    for result_list in result_data
+        # tmp_result_item = result_data[1]  # 1 becomes i
+        tmp_url_list = [i["sourceUrl"] for i in result_list["result"]]
+        # skip faulty result lists
+        if allequal(tmp_url_list)
+            continue
+        end
+        tmp_df = DataFrame(sourceUrl = tmp_url_list)
+        tmp_df[:, :result_hash] .= result_list["result_hash"];
+        tmp_df[:, :rank] = 1:length(tmp_url_list);
+        push!(result_data_df_list, tmp_df)
+    end
+    result_data_df = reduce(vcat, result_data_df_list)
+
+    day_df = innerjoin(result_data_df, meta_data_df, on = :result_hash)
+    push!(full_data_set, day_df)
+
+    remove_json(data_path)
 end
 
-sample_df = reduce(vcat, df_list)
-
-
-tmp_list = [DataFrame(meta_data[1]["result"][i]) for i in 1:length(meta_data[1]["result"])]
-tmp_df = reduce(vcat, tmp_list)
-tmp_df[:, :result_hash] .= meta_data[1]["result_hash"]
-tmp_df[:, :rank] = 1:length(tmp_list)
-
-innerjoin(sample_df, tmp_df, on = :result_hash)
+test = reduce(vcat, full_data_set)
