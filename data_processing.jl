@@ -1,8 +1,9 @@
 using JSON
 using DataFrames
+using Query
+TEST = false
 pattern = ".7z"
 data_path = "data"
-compr_list = [i for i in readdir(data_path) if occursin(pattern, i)]
 
 # extract json from 7z
 function extract_json(data_path, filepaths_to_extract)
@@ -10,10 +11,10 @@ function extract_json(data_path, filepaths_to_extract)
     try
         if typeof(filepaths_to_extract) <: AbstractArray
             for fp in filepaths_to_extract
-                Base.run(`7z x $fp`)
+                Base.run(`7z x $fp -aos`)
             end
         else
-            Base.run(`7z x $filepaths_to_extract`)
+            Base.run(`7z x $filepaths_to_extract -aos`)
         end
     catch e    
     end
@@ -43,44 +44,27 @@ end
 allequal(x) = all(y -> y == x[1], x)
 
 # quick and dirty tests
-begin  
-    # input is array
-    paths = compr_list[1:3]
-    extract_json(data_path, paths)
-    remove_json(data_path)
-end  
-begin
-    # input is string
-    paths = compr_list[1]
-    extract_json(data_path, paths)
-    remove_json(data_path)
+if TEST 
+    begin  
+        # input is array
+        paths = compr_list[1:3]
+        extract_json(data_path, paths)
+        remove_json(data_path)
+    end  
+    begin
+        # input is string
+        paths = compr_list[1]
+        extract_json(data_path, paths)
+        remove_json(data_path)
+    end
 end
-
-# extract, read and remove data
-test_path = compr_list[1:3]  # how many archives to extract
-extract_json(data_path, test_path)  # the extraction
-json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(".json", i)])  # list of the extracted files
-
-# read json files
-samples = []
-for fp in json_list
-    sample = read_json_sample(fp)
-    push!(samples, sample)
-end
-
-# remove json files
-remove_json(data_path)
-
-
-# last item contains the actual search results with a unique hash
-meta_data = [pop!(ds) for ds in samples]
-
-meta_data[1][1]
 
 
 ##### -------------------------------------------- #####
 ##### DATA ISSUE: All results recorded as the same #####
 ##### -------------------------------------------- #####
+
+# meta_data == result_data -> needs new implementation
 
 # data issue: all urls the same in a large fraction of all samples on the first day
 function get_urls(meta_data, index, day)
@@ -92,8 +76,12 @@ sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:
 
 
 # another data issue: apparently, there are a bunch of collisions in the hash function -.-
+# SOLVED: collisions actually point to identical lists for different users (i.e., indicate less personalization)
 
 
+# yet another data issue: &sa...&ved -> some urls with google specific paths seem broken
+# fix broken urls (or don't break them in the first place)
+# remove "sa=.*"
 
 
 ##### ----------------------------- #####
@@ -107,7 +95,7 @@ file_endings = Dict(
 data_path = "data"
 archive_list = [i for i in readdir(data_path) if occursin(file_endings["7z"], i)]
 full_data_set = DataFrame[]
-for archive in archive_list[1:3]
+for archive in archive_list
     extract_json(data_path, archive)
     json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(file_endings["json"], i)])
 
@@ -142,11 +130,29 @@ for archive in archive_list[1:3]
         push!(result_data_df_list, tmp_df)
     end
     result_data_df = reduce(vcat, result_data_df_list)
-
+    
+    # join meta data to result lists
     day_df = innerjoin(result_data_df, meta_data_df, on = :result_hash)
-    push!(full_data_set, day_df)
 
+    # reduce data set to search (exclude news)
+    day_df = day_df |> @filter(_.search_type == "search") |> DataFrame
+    
+    # remove redundant columns
+    select!(day_df, Not([:search_type, :plugin_id]))
+
+    # add data set for this day to the full data set and clean up
+    push!(full_data_set, day_df)
     remove_json(data_path)
 end
 
+full_data_set[1]
+
 test = reduce(vcat, full_data_set)
+
+
+
+keywords = unique(full_data_set[1][!, :keyword])
+
+
+
+
