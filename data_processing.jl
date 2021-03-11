@@ -1,6 +1,7 @@
 using JSON
 using DataFrames
 using Query
+using Feather
 TEST = false
 pattern = ".7z"
 data_path = "data"
@@ -70,7 +71,6 @@ end
 function get_urls(meta_data, index, day)
     [meta_data[day][index]["result"][i]["sourceUrl"] for i in 1:length(meta_data[day][index]["result"])]
 end
-allequal(x) = all(y -> y == x[1], x)
 day = 3
 sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:length(meta_data[day])]])
 
@@ -95,7 +95,7 @@ file_endings = Dict(
 data_path = "data"
 archive_list = [i for i in readdir(data_path) if occursin(file_endings["7z"], i)]
 full_data_set = DataFrame[]
-for archive in archive_list
+for archive in archive_list[1:3]
     extract_json(data_path, archive)
     json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(file_endings["json"], i)])
 
@@ -145,14 +145,39 @@ for archive in archive_list
     remove_json(data_path)
 end
 
-full_data_set[1]
-
-test = reduce(vcat, full_data_set)
-
-
-
+# get all search keywords and assign file names
 keywords = unique(full_data_set[1][!, :keyword])
+filenames_map = Dict(
+    "Alice Weidel" => "aliceweidel",
+    "CSU" => "csu",
+    "Christian Lindner" => "christianlindner",
+    "Cem Özdemir" => "cemoezdemir",
+    "Dietmar Bartsch" => "dietmarbartsch",
+    "SPD" => "spd",
+    "FDP" => "fdp",
+    "CDU" => "cdu",
+    "Bündnis90/Die Grünen" => "gruene",
+    "Alexander Gauland" => "alexandergauland",
+    "Angela Merkel" => "angelamerkel",
+    "Martin Schulz" => "martinschulz",
+    "AfD" => "afd",
+    "Katrin Göring-Eckardt" => "katringoeringeckardt",
+    "Die Linke" => "linke",
+    "Sahra Wagenknecht" => "sahrawagenknecht"
+)
 
+# create datasets by keyword
+for k in keywords
+
+    keyword_df_list = DataFrame[]
+    for d in full_data_set
+        tmp = d |> @filter(_.keyword == k) |> DataFrame
+        push!(keyword_df_list, tmp)
+    end
+    keyword_df = reduce(vcat, keyword_df_list)
+    Feather.write(joinpath("processed", filenames_map[k] * ".feather"), keyword_df)    
+
+end
 
 
 
