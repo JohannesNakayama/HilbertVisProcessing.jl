@@ -89,6 +89,10 @@ end
 ##### RAW DATA PROCESSING PROCEDURE #####
 ##### ----------------------------- #####
 
+if !("processed" in readdir()) 
+    mkdir("processed")
+end
+
 file_endings = Dict(
     "7z" => ".7z",
     "json" => ".json"
