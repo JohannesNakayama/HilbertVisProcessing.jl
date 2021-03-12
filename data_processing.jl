@@ -100,7 +100,7 @@ file_endings = Dict(
 data_path = "data"
 archive_list = [i for i in readdir(data_path) if occursin(file_endings["7z"], i)]
 full_data_set = DataFrame[]
-for archive in archive_list[1:3]
+for archive in archive_list
     extract_json(data_path, archive)
     json_list = joinpath.(data_path, [i for i in readdir(data_path) if occursin(file_endings["json"], i)])
 
