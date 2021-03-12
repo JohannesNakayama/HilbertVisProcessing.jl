@@ -2,7 +2,7 @@ using JSON
 using DataFrames
 using Query
 using Feather
-TEST = false
+FLAG = false
 pattern = ".7z"
 data_path = "data"
 
@@ -45,7 +45,7 @@ end
 allequal(x) = all(y -> y == x[1], x)
 
 # quick and dirty tests
-if TEST 
+if FLAG 
     begin  
         # input is array
         paths = compr_list[1:3]
@@ -68,12 +68,13 @@ end
 # meta_data == result_data -> needs new implementation
 
 # data issue: all urls the same in a large fraction of all samples on the first day
-function get_urls(meta_data, index, day)
-    [meta_data[day][index]["result"][i]["sourceUrl"] for i in 1:length(meta_data[day][index]["result"])]
+if FLAG
+    function get_urls(meta_data, index, day)
+        [meta_data[day][index]["result"][i]["sourceUrl"] for i in 1:length(meta_data[day][index]["result"])]
+    end
+    day = 3
+    sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:length(meta_data[day])]])
 end
-day = 3
-sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:length(meta_data[day])]])
-
 
 # another data issue: apparently, there are a bunch of collisions in the hash function -.-
 # SOLVED: collisions actually point to identical lists for different users (i.e., indicate less personalization)
