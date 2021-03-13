@@ -146,9 +146,9 @@ for archive in archive_list
         filename = filenames_map[k] * ".csv"
         keyword_df = day_df |> @filter(_.keyword == k) |> DataFrame
         if filename in readdir("processed")
-            CSV.write(joinpath("processed", filename), keyword_df)
-        else
             CSV.write(joinpath("processed", filename), keyword_df, append = true)
+        else
+            CSV.write(joinpath("processed", filename), keyword_df)
         end
     end
 end
