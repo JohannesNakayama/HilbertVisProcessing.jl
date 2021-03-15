@@ -3,10 +3,6 @@ using DataFrames
 using Query
 using CSV
 using Suppressor
-FLAG = false
-BATCHSIZE = 10
-pattern = ".7z"
-data_path = "data"
 
 # extract json from 7z
 function extract_json(data_path, filepaths_to_extract)
@@ -46,14 +42,12 @@ end
 # test if all elements in a list are equal [FIND REFERENCE]
 allequal(x) = all(y -> y == x[1], x)
 
-
 function read_and_split_raw_data(jsonpath) 
     # seperate metadata and search results
     metadata = read_json_sample(jsonpath)
     results = pop!(metadata)
     return metadata, results
 end
-
 
 function metadata_to_df(metadata) 
     metadata_df_list = DataFrame[]
@@ -101,7 +95,7 @@ end
 if !("processed" in readdir()) 
     mkdir("processed")
 end
-
+pattern = ".7z"
 file_endings = Dict(
     "7z" => ".7z",
     "json" => ".json"
@@ -157,9 +151,28 @@ end
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ##### ----------- #####
 ##### OTHER STUFF #####
 ##### ----------- #####
+
+FLAG = false
 
 # quick and dirty tests
 if FLAG 
