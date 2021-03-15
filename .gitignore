@@ -1,4 +1,6 @@
 /data/
 /processed/
 *.7z
-
+*.rds
+*.csv
+.Rproj.user

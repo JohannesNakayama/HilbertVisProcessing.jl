@@ -122,7 +122,7 @@ filenames_map = Dict(
 )
 keywords = collect(keys(filenames_map))
 
-for archive in archive_list
+for archive in archive_list[1:3]
     # read and seperate metadata and search results
     extract_json(data_path, archive)
     jsonpath = joinpath.(data_path, [i for i in readdir(data_path) if occursin(file_endings["json"], i)])[1]
