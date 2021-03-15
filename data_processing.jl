@@ -63,16 +63,31 @@ function metadata_to_df(metadata)
     return metadata_df
 end
 
+function strip_protocol(s) 
+    if startswith(s, "http://")
+        return s[8:end]
+    elseif startswith(s, "https://")
+        return s[9:end]
+    else
+        return s
+    end
+end
+
+function strip_network(s)
+    # TODO: strip language domain / www / etc.
+end
+
 function results_to_df(results)
     results_df_list = DataFrame[]
     for result_list in results
-        tmp_url_list = [i["sourceUrl"] for i in result_list["result"]]
-        tmp_domain_list = [try i["medium"] catch e "NA" end for i in result_list["result"]]
+        tmp_url_list = [strip_protocol(i["sourceUrl"]) for i in result_list["result"]]
+        tmp_medium_list = [try i["medium"] catch e "NA" end for i in result_list["result"]]
+        tmp_domain_list = [split(i, "/")[1] for i in tmp_url_list]
         # skip faulty result lists
         if allequal(tmp_url_list)
             continue
         end
-        tmp_df = DataFrame(sourceUrl = tmp_url_list, domain = tmp_domain_list)
+        tmp_df = DataFrame(sourceUrl = tmp_url_list, medium = tmp_medium_list, domain = tmp_domain_list)
         tmp_df[:, :result_hash] .= result_list["result_hash"]
         tmp_df[:, :rank] = 1:length(tmp_url_list)
         push!(results_df_list, tmp_df)
@@ -212,4 +227,4 @@ end
 
 # yet another data issue: &sa...&ved -> some urls with google specific paths seem broken
 # fix broken urls (or don't break them in the first place)
-# remove "sa=.*"
+# remove "sa=.*"r
