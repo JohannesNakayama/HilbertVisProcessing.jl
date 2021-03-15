@@ -67,11 +67,12 @@ function results_to_df(results)
     results_df_list = DataFrame[]
     for result_list in results
         tmp_url_list = [i["sourceUrl"] for i in result_list["result"]]
+        tmp_domain_list = [try i["medium"] catch e "NA" end for i in result_list["result"]]
         # skip faulty result lists
         if allequal(tmp_url_list)
             continue
         end
-        tmp_df = DataFrame(sourceUrl = tmp_url_list)
+        tmp_df = DataFrame(sourceUrl = tmp_url_list, domain = tmp_domain_list)
         tmp_df[:, :result_hash] .= result_list["result_hash"]
         tmp_df[:, :rank] = 1:length(tmp_url_list)
         push!(results_df_list, tmp_df)
@@ -121,12 +122,11 @@ filenames_map = Dict(
     "Sahra Wagenknecht" => "sahrawagenknecht"
 )
 keywords = collect(keys(filenames_map))
-
 for archive in archive_list[1:3]
     # read and seperate metadata and search results
     extract_json(data_path, archive)
     jsonpath = joinpath.(data_path, [i for i in readdir(data_path) if occursin(file_endings["json"], i)])[1]
-    @suppress metadata, results = read_and_split_raw_data(jsonpath);
+    metadata, results = read_and_split_raw_data(jsonpath);
     remove_json(data_path)
 
     # put everything into one dataframe
