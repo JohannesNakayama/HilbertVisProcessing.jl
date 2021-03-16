@@ -16,6 +16,8 @@ for (f in files) {
     filter(rank <= 20) %>%
     filter(language == "de") %>% 
     filter(url != "google") %>% 
+    filter(url != "no source") %>% 
+    filter(domain != "no source") %>% 
     group_by(keyword, search_date, url, domain) %>%
     summarise(rank = sum(1/(rank + 1))) %>%
     ungroup()
