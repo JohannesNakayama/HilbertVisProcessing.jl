@@ -2,7 +2,6 @@ using JSON
 using DataFrames
 using Query
 using CSV
-using Suppressor
 
 # extract json from 7z
 function extract_json(data_path, filepaths_to_extract)
@@ -43,7 +42,6 @@ end
 allequal(x) = all(y -> y == x[1], x)
 
 function read_and_split_raw_data(jsonpath) 
-    # seperate metadata and search results
     metadata = read_json_sample(jsonpath)
     results = pop!(metadata)
     return metadata, results
@@ -56,10 +54,10 @@ function metadata_to_df(metadata)
         for j in 1:length(metadata[i])
             push!(tmp_df_list, DataFrame(metadata[i][j]))
         end
-        tmp_df = reduce(vcat, tmp_df_list)
+        tmp_df = vcat(tmp_df_list..., cols=:union)
         push!(metadata_df_list, tmp_df)
     end
-    metadata_df = reduce(vcat, metadata_df_list)
+    metadata_df = vcat(metadata_df_list..., cols=:union)
     return metadata_df
 end
 
@@ -74,13 +72,21 @@ function strip_protocol(s)
 end
 
 function strip_network(s)
-    # TODO: strip language domain / www / etc.
+    if startswith(s, "www.")
+        return s[5:end]
+    elseif startswith(s, "de-de.")
+        return s[7:end]
+    elseif startswith(s, "de.")
+        return s[4:end]
+    else
+        return s
+    end
 end
 
 function results_to_df(results)
     results_df_list = DataFrame[]
     for result_list in results
-        tmp_url_list = [strip_protocol(i["sourceUrl"]) for i in result_list["result"]]
+        tmp_url_list = [strip_network(strip_protocol(i["sourceUrl"])) for i in result_list["result"]]
         tmp_medium_list = [try i["medium"] catch e "NA" end for i in result_list["result"]]
         tmp_domain_list = [split(i, "/")[1] for i in tmp_url_list]
         # skip faulty result lists
@@ -92,13 +98,14 @@ function results_to_df(results)
         tmp_df[:, :rank] = 1:length(tmp_url_list)
         push!(results_df_list, tmp_df)
     end
-    results_df = reduce(vcat, results_df_list)
+    results_df = vcat(results_df_list..., cols=:union)
     return results_df
 end
 
 function reduce_dataset(df)
     df = df |> @filter(_.search_type == "search") |> DataFrame
-    select!(df, Not([:search_type, :plugin_id]))
+    cols_to_delete = intersect(names(df), ["search_type", "plugin_id", "plugin_version"])
+    select!(df, Not(cols_to_delete))
     return df
 end
 
@@ -167,63 +174,9 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ##### ----------- #####
 ##### OTHER STUFF #####
 ##### ----------- #####
-
-FLAG = false
-
-# quick and dirty tests
-if FLAG 
-    begin  
-        # input is array
-        paths = compr_list[1:3]
-        extract_json(data_path, paths)
-        remove_json(data_path)
-    end  
-    begin
-        # input is string
-        paths = compr_list[1]
-        extract_json(data_path, paths)
-        remove_json(data_path)
-    end
-end
-
-
-##### -------------------------------------------- #####
-##### DATA ISSUE: All results recorded as the same #####
-##### -------------------------------------------- #####
-
-# meta_data == result_data -> needs new implementation
-
-# data issue: all urls the same in a large fraction of all samples on the first day
-if FLAG
-    function get_urls(meta_data, index, day)
-        [meta_data[day][index]["result"][i]["sourceUrl"] for i in 1:length(meta_data[day][index]["result"])]
-    end
-    day = 3
-    sum([allequal(urls) for urls in [get_urls(meta_data, index, day) for index in 1:length(meta_data[day])]])
-end
-
-# another data issue: apparently, there are a bunch of collisions in the hash function -.-
-# SOLVED: collisions actually point to identical lists for different users (i.e., indicate less personalization)
-
 
 # yet another data issue: &sa...&ved -> some urls with google specific paths seem broken
 # fix broken urls (or don't break them in the first place)
