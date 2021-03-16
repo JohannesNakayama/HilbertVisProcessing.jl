@@ -9,12 +9,13 @@ for (f in files) {
   
   tmp %<>%
     mutate(search_date = lubridate::as_date(search_date)) %>% # Fix date as only days
-    # mutate(domain = str_replace_all(domain, "^[.](.+)", "\\1")) %>%  # fix some broken domains
     mutate(url = str_replace_all(sourceUrl, "^[.](.+)", "\\1")) %>%
     mutate(url = str_remove(url, pattern = "&sa=.*$")) # remove left over google analytics url fragments
   
   tmp %<>% 
     filter(rank <= 20) %>%
+    filter(language == "de") %>% 
+    filter(url != "google") %>% 
     group_by(keyword, search_date, url, domain) %>%
     summarise(rank = sum(1/(rank + 1))) %>%
     ungroup()
