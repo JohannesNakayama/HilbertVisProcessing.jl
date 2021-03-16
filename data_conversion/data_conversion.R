@@ -15,7 +15,7 @@ for (f in files) {
   
   tmp %<>% 
     filter(rank <= 20) %>%
-    group_by(keyword, search_date, url) %>%
+    group_by(keyword, search_date, url, domain) %>%
     summarise(rank = sum(1/(rank + 1))) %>%
     ungroup()
   
