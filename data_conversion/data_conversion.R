@@ -23,4 +23,6 @@ for (f in files) {
     ungroup()
   
   saveRDS(tmp, file = file.path("..", "processed", paste0(filename, ".rds")))  
+  rm(tmp)
+  gc(full = TRUE)
 }
